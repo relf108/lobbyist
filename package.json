@@ -11,5 +11,8 @@
   "description": "",
   "dependencies": {
     "dockerode": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^16.0.1"
   }
 }

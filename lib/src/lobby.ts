@@ -1,5 +1,12 @@
 var Docker = require('dockerode');
 class Lobby {
+	public parentHost: any;
+	public parentPort: any;
+	public endpoints: any;
+	public host: any;
+	public docker: any;
+	public running: any;
+	public container: any;
 
     constructor(parentHost, parentPort, endpoints) {
         this.parentHost = parentHost;
