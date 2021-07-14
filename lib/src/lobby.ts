@@ -1,41 +1,61 @@
+import { exists } from "fs";
+import { Domain } from "node:domain";
+import { Container } from "dockerode";
+import { Docker } from "dockerode";
+
 var Docker = require('dockerode');
 class Lobby {
-	public parentHost: any;
-	public parentPort: any;
-	public endpoints: any;
-	public host: any;
-	public docker: any;
-	public running: any;
-	public container: any;
+    public parentHost: String;
+    public parentPort: number;
+    public host: String;
+    public running: boolean;
+    public docker: any;
+    public container: Container;
 
-    constructor(parentHost, parentPort, endpoints) {
+    constructor(parentHost: String, parentPort: number, localTesting?: Boolean) {
+        if (localTesting === true) {
+            this.docker = new Docker({ socketPath: '/var/run/docker.sock' })
+        }
+        else {
+            this.docker = new Docker({ host: this.parentHost, port: this.parentPort })
+        }
         this.parentHost = parentHost;
         this.parentPort = parentPort;
-        ///List of lobby-endpoints
-        this.endpoints = endpoints;
         this.host = parentHost + '/' + Math.floor(Math.random() * 9999);
-        this.docker = new Docker({ host: this.host, port: this.parentPort })
+
         this.running = false;
-        this.container = null;
+        this.container = '';
 
     }
-    createContainer() {
-        this.container = this.docker.createContainer({
-            Image: 'ubuntu',
+    async createContainer(imageName: String, nodeJsFile?: File) {
+        var path: String;
+        if (nodeJsFile === undefined) {
+            path = `${this.parentHost}/lobyyist-gen/app.js`;
+        }
+        else {
+            path = nodeJsFile.name
+        }
+        this.container = await (this.docker.createContainer({
+            Image: imageName,
             AttachStdin: false,
             AttachStdout: true,
             AttachStderr: true,
             Tty: true,
-            ///generate nodejs file with endpoints as set and push to docker container
-            Cmd: ['/bin/bash', '-c', 'sudo apt install nodejs npm wget -y', 'wget ' + this.parentHost + '/lobyyist-gen/app.js' ],
+            ///Find way to run commands (init.sh) up container creation/start
+            Cmd: ['/bin/bash/', '-c', `./init.sh`],
             OpenStdin: false,
             StdinOnce: false
-        })
+        }).then(async function (container: Container) {
+            return await container;
+        }));
     }
 
     startLobby() {
+        console.log(this.container);
+
         try {
-            if (this.running === false && this.container != null) {
+            if (this.running === false && this.container != '') {
+                //TODO attempt at running all comands when lobby is built
                 this.container.start();
                 this.running = true;
             }
@@ -46,6 +66,7 @@ class Lobby {
         catch (e) {
             console.log("failed to start lobby:\n" + e);
         }
+
 
     }
 
@@ -66,3 +87,4 @@ class Lobby {
         }
     }
 }
+export default Lobby;
