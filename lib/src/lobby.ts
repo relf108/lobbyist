@@ -1,5 +1,4 @@
-import { exists } from "fs";
-import { Domain } from "node:domain";
+import { readFile, writeFile } from "fs";
 import { Container } from "dockerode";
 import { Docker } from "dockerode";
 
@@ -13,22 +12,30 @@ class Lobby {
     public container: Container;
 
     constructor(parentHost: String, parentPort: number, localTesting?: Boolean) {
-        if (localTesting === true) {
-            this.docker = new Docker({ socketPath: '/var/run/docker.sock' })
-        }
-        else {
-            this.docker = new Docker({ host: this.parentHost, port: this.parentPort })
-        }
         this.parentHost = parentHost;
         this.parentPort = parentPort;
+        try {
+            if (localTesting === true) {
+                this.docker = new Docker({ socketPath: '/var/run/docker.sock' })
+            }
+            else {
+                this.docker = new Docker({ host: this.parentHost, port: this.parentPort })
+            }
+        }
+        catch (e) {
+            console.log('Cannot connect to Docker daemon. Ensure it is running and your specified host is valid.')
+            throw (e);
+        }
         this.host = parentHost + '/' + Math.floor(Math.random() * 9999);
-
         this.running = false;
         this.container = '';
 
     }
+
+    ///TODO build default image with editDockerFile() and build container from that image
     async createContainer(imageName: String, nodeJsFile?: File) {
         var path: String;
+        this.editDockerfile(path);
         if (nodeJsFile === undefined) {
             path = `${this.parentHost}/lobyyist-gen/app.js`;
         }
@@ -41,13 +48,23 @@ class Lobby {
             AttachStdout: true,
             AttachStderr: true,
             Tty: true,
-            ///Find way to run commands (init.sh) up container creation/start
-            Cmd: ['/bin/bash/', '-c', `./init.sh`],
+            Cmd: ['/bin/bash', '-c', 'echo'],
             OpenStdin: false,
             StdinOnce: false
         }).then(async function (container: Container) {
             return await container;
         }));
+    }
+
+    editDockerfile(path: String) {
+        readFile('Dockerfile', 'utf-8', (err, data) => {
+            while (data.includes('$path')) {
+                data = data.replace(('$path'), `${path}`);
+            }
+            writeFile('Dockerfile', data, 'utf-8', function (err) {
+                console.log(err);
+            });
+        })
     }
 
     startLobby() {

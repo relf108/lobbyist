@@ -1,2 +1,5 @@
 /node_modules
 .history
+
+.vscode
+.nyc_output
